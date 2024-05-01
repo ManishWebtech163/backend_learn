@@ -10,7 +10,7 @@
 
 const createApiResponse = (statusCode, data, message = "Success") => {
   return {
-    statusCode: statusCode < 400,
+    statusCode: statusCode, //statusCode < 400
     data: data,
     message: message,
     success: true,
