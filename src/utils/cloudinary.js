@@ -14,14 +14,13 @@ const uploadOnCloudinary = async (fileLink) => {
     if (!fileLink) {
       return null;
     }
-
     const result = await cloudinary.uploader.upload(fileLink, {
       resource_type: "auto",
     });
-
+    //console.table(result, "result coludniry");
+    fs.unlinkSync(fileLink); // remove the localy save file
     return result;
   } catch (err) {
-
     fs.unlinkSync(fileLink); // remove the localy save file as the upload operation got failed
     return null;
   }

@@ -1,5 +1,5 @@
 import { User } from '../models/auth/user.model.js';
-import { ApiError } from '../utils/apiError.js';
+import { createApiError } from '../utils/apiError.js';
 import { createApiResponse } from '../utils/apiResponce.js';
 import { asyncHandler } from '../utils/asyncHandler.js'
 import { uploadOnCloudinary } from '../utils/cloudinary.js';
@@ -13,29 +13,34 @@ const registerUser = asyncHandler(async (req, res) => {
 
     // validations
     if (!username || username?.trim() === "") {
-        throw new ApiError(400, "User name is required")
+        const errorRes = createApiError(400, "User name is required")
+        return res.status(400).json(errorRes)
     }
     if (!email || email?.trim() === "") {
-        throw new ApiError(400, "Email is required")
+        const errorRes = createApiError(400, "Email is required")
+        return res.status(400).json(errorRes)
     }
 
     // check if user aleardy exists (by email)
     const checkUserExists = await User.findOne({ email })
     if (checkUserExists) {
-        throw new ApiError(409, "User alerady exists")
+        const errorRes = createApiError(409, "User alerady exists")
+        return res.status(409).json(errorRes)
     }
 
     // check for avatar
     const avatarLocalPath = req.files?.avatar[0]?.path
 
     if (!avatarLocalPath) {
-        throw new ApiError(400, "avatar is rerquired")
+        const errorRes = createApiError(400, "avatar is rerquired")
+        return res.status(400).json(errorRes)
     }
 
     // upload them to cloudinary
     const uploadAvatar = await uploadOnCloudinary(avatarLocalPath)
     if (!uploadAvatar) {
-        throw new ApiError(400, "avatar is rerquired 2")
+        const errorRes = createApiError(400, "avatar is rerquired 2")
+        return res.status(500).json(errorRes)
     }
     // create user object and add in db
     const userObject = {
@@ -52,7 +57,8 @@ const registerUser = asyncHandler(async (req, res) => {
     )
 
     if (!currentUser) {
-        throw new ApiError(500, "Somthing went wrong while creating register")
+        const errorRes = createApiError(500, "Somthing went wrong while creating register")
+        return res.status(500).json(errorRes)
     }
     const apiRes = createApiResponse(200, currentUser, "user registered successfully")
     return res.status(201).json(apiRes)
