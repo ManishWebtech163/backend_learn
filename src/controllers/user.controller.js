@@ -1,9 +1,12 @@
+import { validateHeaderName } from 'http';
 import { User } from '../models/auth/user.model.js';
 import { createApiError } from '../utils/apiError.js';
 import { createApiResponse } from '../utils/apiResponce.js';
 import { asyncHandler } from '../utils/asyncHandler.js'
 import { uploadOnCloudinary } from '../utils/cloudinary.js';
 
+
+// -register-
 const registerUser = asyncHandler(async (req, res) => {
 
     //  --steps for register--
@@ -69,4 +72,76 @@ const registerUser = asyncHandler(async (req, res) => {
 
 })
 
-export { registerUser }
+// -login-
+const loginUser = asyncHandler(async (req, res) => {
+    // get user credentials
+    const { email, password } = req.body
+
+    // validate user email or password
+    if (!email || !password) {
+        const errRes = createApiError(400, "email or password field is requied")
+        return res.status(400).json(errRes)
+    }
+    // check user exist by (email)
+    const findUser = await User.findOne({ email })
+
+    if (!findUser) {
+        const errRes = createApiError(404, "User not found")
+        return res.status(404).json(errRes)
+    }
+
+    // check user password
+    const userPasswordMatch = await findUser.isPassword(password)
+
+    if (!userPasswordMatch) {
+        const errRes = createApiError(401, "Password not match")
+        return res.status(401).json(errRes)
+    }
+
+    // genrate access token and refresh token
+    const userAccessToken = await findUser.generateAccessToken()
+    const userRefershToken = await findUser.refreshAccessToken()
+
+    if (!userAccessToken || !userRefershToken) {
+        const errRes = createApiError(500, "Something went wrong while gerate tokens")
+        return res.status(500).json(errRes)
+    }
+
+    // save in db
+    findUser.refreshToken = userRefershToken
+    try {
+        await findUser.save({ validateBeforeSave: false })
+    } catch (error) {
+        const errRes = createApiError(500, "Something went wrong")
+        return res.status(500).json(errRes)
+    }
+
+    console.log(findUser, "findUser");
+
+
+    // send cookie ans send res
+    const getUpdatedUser = await User.findOne({ _id: findUser._id }).select("-password -refreshToken")
+
+    const options = {
+        httpOnly: true,
+        secure: true
+    }
+
+    const apiRes = createApiResponse(200, { getUpdatedUser, userAccessToken, userRefershToken }, "User login successfully")
+
+    return res.status(200)
+        .cookie("accessToken", userAccessToken, options)
+        .cookie("refreshToken", userRefershToken, options)
+        .json(apiRes)
+
+})
+
+
+// --logout user--
+const logOutUser = asyncHandler(async (req, res) => {
+    // const {} = req.
+    const as = await User.fin
+})
+
+
+export { registerUser, loginUser, logOutUser }
