@@ -37,28 +37,27 @@ userSchema.methods.isPasswordCorrect = async function (password) {
 
 // --genrate access token--
 userSchema.methods.generateAccessToken = async function () {
-  jwt.sign(
+  return jwt.sign(
     {
       _id: this._id,
       email: this.email,
-      fullname: this.fullname,
     },
-    process.env.access_token_secret,
+    "test",
     {
-      expiresIn: process.env.access_token_expiry,
+      expiresIn: "1d",
     },
   );
 };
 
 // --genrate refresh token--
 userSchema.methods.refreshAccessToken = async function () {
-  jwt.sign(
+  return jwt.sign(
     {
       _id: this._id,
     },
-    process.env.refresh_token_secret,
+    "testtest",
     {
-      expiresIn: process.env.refresh_token_expiry,
+      expiresIn: "10d",
     },
   );
 };

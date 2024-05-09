@@ -1,11 +1,12 @@
-import { User } from "../models/auth/user.model";
-import { createApiError } from "../utils/apiError"
-import { asyncHandler } from "../utils/asyncHandler"
+import { User } from "../models/auth/user.model.js";
+import { createApiError } from "../utils/apiError.js"
+import { asyncHandler } from "../utils/asyncHandler.js"
 import jwt from "jsonwebtoken";
 
 const authMiddlerWare = asyncHandler(async (req, res, next) => {
     try {
-        const { accessToken } = req.cookie || req.header("Authorization")?.replace("Bearer ", "")
+        const { accessToken } = req.cookies || req.header("Authorization")?.replace("Bearer ", "")
+
         if (!accessToken) {
             const errRes = createApiError(401, "Unauthorize request")
             return res.status(401).json(errRes)
@@ -18,7 +19,7 @@ const authMiddlerWare = asyncHandler(async (req, res, next) => {
             const errRes = createApiError(401, "invalid access token")
             return res.status(401).json(errRes)
         }
-        // --add userdata in request for get next step
+        // --add userdata in request for get next step--
         req.user = findUser
         next()
     } catch (err) {

@@ -1,10 +1,14 @@
-import { validateHeaderName } from 'http';
+import jwt from "jsonwebtoken";
 import { User } from '../models/auth/user.model.js';
 import { createApiError } from '../utils/apiError.js';
 import { createApiResponse } from '../utils/apiResponce.js';
 import { asyncHandler } from '../utils/asyncHandler.js'
 import { uploadOnCloudinary } from '../utils/cloudinary.js';
 
+const options = {
+    httpOnly: true,
+    secure: true
+}
 
 // -register-
 const registerUser = asyncHandler(async (req, res) => {
@@ -91,7 +95,7 @@ const loginUser = asyncHandler(async (req, res) => {
     }
 
     // check user password
-    const userPasswordMatch = await findUser.isPassword(password)
+    const userPasswordMatch = await findUser.isPasswordCorrect(password)
 
     if (!userPasswordMatch) {
         const errRes = createApiError(401, "Password not match")
@@ -101,9 +105,8 @@ const loginUser = asyncHandler(async (req, res) => {
     // genrate access token and refresh token
     const userAccessToken = await findUser.generateAccessToken()
     const userRefershToken = await findUser.refreshAccessToken()
-
     if (!userAccessToken || !userRefershToken) {
-        const errRes = createApiError(500, "Something went wrong while gerate tokens")
+        const errRes = createApiError(500, "Something went wrong while gerating tokens")
         return res.status(500).json(errRes)
     }
 
@@ -116,18 +119,12 @@ const loginUser = asyncHandler(async (req, res) => {
         return res.status(500).json(errRes)
     }
 
-    console.log(findUser, "findUser");
-
-
     // send cookie ans send res
-    const getUpdatedUser = await User.findOne({ _id: findUser._id }).select("-password -refreshToken")
+    const getUpdatedUser = await User.findById({ _id: findUser._id }).select("-password -refreshToken")
 
-    const options = {
-        httpOnly: true,
-        secure: true
-    }
 
-    const apiRes = createApiResponse(200, { getUpdatedUser, userAccessToken, userRefershToken }, "User login successfully")
+
+    const apiRes = createApiResponse(200, { data: getUpdatedUser, userAccessToken, userRefershToken }, "User login successfully")
 
     return res.status(200)
         .cookie("accessToken", userAccessToken, options)
@@ -139,9 +136,67 @@ const loginUser = asyncHandler(async (req, res) => {
 
 // --logout user--
 const logOutUser = asyncHandler(async (req, res) => {
-    // const {} = req.
-    const as = await User.fin
+    const { _id } = req.user
+    const removeRefreshTokenForLogout = await User.findByIdAndUpdate({ _id },
+        {
+            $set: { refreshAccessToken: undefined }
+        }, {
+        new: true
+    }
+    )
+    // -remove cookies--
+    const options = {
+        httpOnly: true,
+        secure: true
+    }
+    return res.status(200)
+        .clearCookie("accessToken", undefined, options)
+        .clearCookie("refreshToken", undefined, options)
+        .json({ status: 200, message: "user logout successfully" })
+
+})
+
+//- refresh accessToke--
+const refreshAccessToken = asyncHandler(async (req, res) => {
+    try {
+        //   get refersh token--
+        const refreshTokenGet = req.cookies.refreshToken || req.body.refreshToken
+        if (!refreshTokenGet) {
+            const errRes = createApiError(404, "Invalid refresh token")
+            return res.status(404).json(errRes)
+        }
+        // --verfify token--
+        const decodedToken = await jwt.verify(refreshTokenGet, process.env.refresh_token_secret)
+        if (!decodedToken) {
+            const errRes = createApiError(401, "Invalid refresh token")
+            return res.status(401).json(errRes)
+        }
+        const findUser = await User.findById(decodedToken._id)
+        if (!decodedToken) {
+            const errRes = createApiError(401, "Invalid refresh token")
+            return res.status(401).json(errRes)
+        }
+
+        if (refreshTokenGet !== findUser.refreshToken) {
+            const errRes = createApiError(401, "Invalid refresh token")
+            return res.status(401).json(errRes)
+        }
+
+        const userAccessToken = await findUser.generateAccessToken()
+        if (!userAccessToken) {
+            const errRes = createApiError(500, "Something went wrong while gerating tokens")
+            return res.status(500).json(errRes)
+        }
+        const apiRes = createApiResponse(200, { data: findUser, userAccessToken }, "refresh access token successfully")
+
+        return res.status(200)
+            .cookie("accessToken", userAccessToken, options)
+            .json(apiRes)
+    } catch (error) {
+        const errRes = createApiError(500, error?.message ?? "Something went wrong while gerating tokens")
+        return res.status(500).json(errRes)
+    }
 })
 
 
-export { registerUser, loginUser, logOutUser }
+export { registerUser, loginUser, logOutUser, refreshAccessToken }
